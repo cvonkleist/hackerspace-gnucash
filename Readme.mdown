@@ -1,0 +1,48 @@
+# Gainesville Hackerspace GnuCash scripts
+
+This is a collection of stuff to help with invoice generation, etc.
+
+
+## `insert_invoices.py`
+
+This script can be run monthly to generate invoices for Hackerspace members.
+
+### Example usage
+
+    python insert_invoices.py hackerspace.gnucash 1000 'Monthly dues' 40.00 000003 000006 ...
+
+### Suggested workflow
+
+Use `insert_invoices.py` in conjuntion with `get_ids.py`, like this:
+
+    $ python get_ids.py hackerspace.gnucash > ids.txt
+    $ cat ids.txt
+    000002  Ian
+    000003  Clint
+    000006  cvk
+    000666  Jerky Jerkface
+
+Now, edit `ids.txt` to remove members who should not be invoiced (if any).
+
+    # remove Jerky Jerkface
+    $ vim ids.txt
+
+Finally, create the invoices:
+
+    $ python insert_invoices.py hackerspace.gnucash 1000 'Monthly dues' 40.00 `cut -f1 ids.txt`
+    Created invoice number 1000 for customer Ian (000002)
+    Created invoice number 1001 for customer Clint (000003)
+    Created invoice number 1002 for customer cvk (000006)
+    Done.
+
+
+## `get_ids.py`
+
+This script extracts all the members' IDs from the GnuCash XML file by
+searching the XML DOM.
+
+    $ python get_ids.py hackerspace.gnucash
+    000002  Ian
+    000003  Clint
+    000006  cvk
+    000666  Jerky Jerkface
