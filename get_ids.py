@@ -2,8 +2,9 @@
 
 from xml.dom.minidom import parseString
 from sys import argv
+import gzip
 
-file = open(argv[1],'r')
+file = gzip.open(argv[1],'r')
 data = file.read()
 file.close()
 
