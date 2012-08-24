@@ -92,19 +92,31 @@ description = argv[3]
 invoice_value = gnc_numeric_from_decimal(Decimal(argv[4]))
 customer_ids = argv[5:]
 
+#Check that the date is set correctly for a batch of invoices.
+#Generally, the date should be set to the beginning of each month
+#for the month of the billing period.
+
+invoice_date = datetime.date(2012, 8, 1)
 
 session = Session(gnucash_filename, is_new=False)
 session.save() # this seems to make a difference in more complex cases
 
 book = session.book
 root_account = book.get_root_account()
+
 commodity_table = book.get_table()
 USD = commodity_table.lookup('CURRENCY', 'USD')
+
 assets = root_account.lookup_by_name("Assets")
 receivables = assets.lookup_by_name("Accounts Receivable")
-income = assets.lookup_by_name("Income:Member Dues")
 
-# this is super hacky. the gnucash python api doesn't seem to make it possible
+# This assumes you have an income subaccount of the form "Income:Member Dues"
+# The lookup fails if the parent account is specified.
+# IE root_account.lookup_by_name("Income:Member Dues") does not work.
+
+income = root_account.lookup_by_name("Member Dues")
+
+# This is super hacky. The gnucash python api doesn't seem to make it possible
 # to look up billing terms, so here we copy billing terms from an old invoice
 # that had ones we like. if the invoice number ever goes away, this will stop
 # working. :(
@@ -114,6 +126,7 @@ terms = old_invoice.GetTerms()
 # look up customer objects. do this before invoice insertion to ensure the ids
 # are correct.
 customers = []
+
 for customer_id in customer_ids:
     customer = book.CustomerLookupByID(customer_id)
     assert(customer != None)
@@ -122,19 +135,23 @@ for customer_id in customer_ids:
 
 # insert invoices
 invoice_number = int(first_invoice_number)
+
 for customer in customers:
     invoice = Invoice(book, str(invoice_number), USD, customer)
     invoice.SetTerms(terms)
     invoice_entry = Entry(book, invoice)
+    
     invoice_entry.SetInvTaxIncluded(False)
     invoice_entry.SetDescription(description)
     invoice_entry.SetQuantity(GncNumeric(1))
     invoice_entry.SetInvAccount(income)
     invoice_entry.SetInvPrice(invoice_value)
-    invoice_entry.SetDate(datetime.date.today())
-    invoice_entry.SetDateEntered(datetime.date.today())
-    invoice.PostToAccount(receivables, datetime.date.today(), datetime.date.today(),
-                          "", True)
+    invoice_entry.SetDate(invoice_date)
+    invoice_entry.SetDateEntered(invoice_date)
+
+    invoice.PostToAccount(receivables, invoice_date,
+	                  invoice_date+datetime.timedelta(days=15) ,description, True) #Set the due date 15 days later
+
     print "Created invoice number", invoice_number, "for customer", customer.GetName(), "(" + str(customer.GetID()) + ")"
     invoice_number += 1
 
